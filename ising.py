@@ -5,17 +5,17 @@ import matplotlib.pyplot as plt
 from time import time
 
 # random.seed(1)
-def ising(plotting=False):
+def ising(N, NT, T, plotting=False):
 
     start_time = time()
 
-    N=512
     Noffset=N+2
-    J=1
     k=1
-    T=1
-    beta = 1/k/T
-    NT = int(1e6)
+    J=1
+    beta=1/k/T
+    max_e = J*N**2
+    max_m = N**2
+    NT = int(NT)
     saved_parameters=3
     history = np.empty((NT+1,saved_parameters))
 
@@ -43,7 +43,7 @@ def ising(plotting=False):
         return E, M, accepted
     def ViewSystem(title):
         print(title)
-        print("Energy: %d\tMagnetization: %d" %(E,M))
+        print("Energy: %d\tMagnetization: %d\tN: %d\tT: %.1f" %(E,M,N,T))
         print(spins[1:-1])
 
     spins=np.ones([Noffset,Noffset], int)
@@ -64,12 +64,24 @@ def ising(plotting=False):
     energies = history[:,0]
     magnetization = history[:,1]
     acceptance = history[:,2]
-
+    print("Acceptance ratio: %f" %np.mean(acceptance))
     print("Runtime: %f" % (time()-start_time))
 
     def plot():
-        plt.plot(range(NT+1),energies)
-        plt.plot(range(NT+1),magnetization)
-        plt.show()
+        plt.plot(range(NT+1),energies, "b-", label="Energy")
+        plt.plot(range(NT+1),magnetization, "g-", label="Magnetization")
+        plt.plot(range(NT+1), np.ones(NT+1)*max_e, "b--", label="Max energy")
+        plt.plot(range(NT+1), -np.ones(NT+1)*max_e, "b--")
+        plt.plot(range(NT+1), np.ones(NT+1)*max_m, "g--", label="Max magnetization")
+        plt.plot(range(NT+1), -np.ones(NT+1)*max_m, "g--")
+        plt.title("Energy: %d Magnetization: %d N: %d T: %.1f" %(E,M,N,T))
+        plt.legend()
+        plt.xlabel("Time")
+        title_string = "N%d_T%.1f.png"%(N,T)
+        plt.savefig(title_string)
+        # plt.show()
+        plt.clf()
     if(plotting):
         plot()
+for T in np.linspace(1,3,100):
+    ising(512, 2e6, T, plotting=True)
