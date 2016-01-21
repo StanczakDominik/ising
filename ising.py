@@ -2,36 +2,74 @@ import numpy as np
 import numpy.random as random
 import matplotlib
 import matplotlib.pyplot as plt
+from time import time
 
-random.seed(1)
+# random.seed(1)
+def ising(plotting=False):
 
-N=4
-J=1
-k=1
-T=1
-beta = 1/k/T
+    start_time = time()
 
-spins=np.ones([N,N], int)
-spins[:,1::2] = -1
+    N=512
+    Noffset=N+2
+    J=1
+    k=1
+    T=1
+    beta = 1/k/T
+    NT = int(1e6)
+    saved_parameters=3
+    history = np.empty((NT+1,saved_parameters))
 
-def E(spins):
-    total = 0
-    center = spins[1:-1, 1:-1]
-    sides = spins[:-2, 1:-1] + spins[2:, 1:-1] +\
-        spins[1:-1, 2:] + spins[1:-1, :-2]
+    def Energy(spins):
+        center = spins[1:-1, 1:-1]
+        sides = spins[:-2, 1:-1] + spins[2:, 1:-1] +\
+            spins[1:-1, 2:] + spins[1:-1, :-2]
 
-    total += np.sum(center*sides)
+        return -J*np.sum(center*sides)
 
-    upper_left = spins[0,0] * (spins[1,0] + spins[0,1])
-    lower_left = spins[0,-1] * (spins[1, -1] + spins[0,-2])
-    upper_right = spins[-1, 0] * (spins[-2,0] + spins[-1,1])
-    lower_right = spins[-1,-1] * (spins[-1,-2] + spins[-2,-1])
-    total += upper_left + lower_left + upper_right + lower_right
+    def Mag(spins):
+        return np.sum(spins[1:-1,1:-1])
 
-    return -J*total
+    def FlipSpin(spins, E, M):
+        x, y = random.randint(1,N+2, 2)
+        test = spins[x,y]
+        deltaE=J*2*test
+        accepted = 0
+        if(random.random() < np.exp(-beta*deltaE)):
+            # print("Flipped %d, %d" %(x,y))
+            E += deltaE
+            M -= 2*test
+            spins[x,y] *= -1
+            accepted = 1
+        return E, M, accepted
+    def ViewSystem(title):
+        print(title)
+        print("Energy: %d\tMagnetization: %d" %(E,M))
+        print(spins[1:-1])
 
-def M(spins):
-    return np.sum(spins)
+    spins=np.ones([Noffset,Noffset], int)
+    spins[:,0] = spins[:,-1] = spins[0,:] = spins[-1, :] = 0
+    # spins[1:-1,1:-1:2,] = -1
+    spins[1:-1, 1:-1] = random.randint(0,2, (N,N))*2-1
 
-print(E(spins), M(spins))
-print(spins)
+
+    E, M = Energy(spins), Mag(spins)
+    parameters = E, M, -1
+    history[0] = parameters
+    ViewSystem("Starting")
+
+    for i in range(NT):
+        parameters = E, M, Accepted = FlipSpin(spins,E,M)
+        history[i+1]= parameters
+    ViewSystem("Finished")
+    energies = history[:,0]
+    magnetization = history[:,1]
+    acceptance = history[:,2]
+
+    print("Runtime: %f" % (time()-start_time))
+
+    def plot():
+        plt.plot(range(NT+1),energies)
+        plt.plot(range(NT+1),magnetization)
+        plt.show()
+    if(plotting):
+        plot()
