@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from time import time
 
 # random.seed(1)
-def ising(N, NT, T, plotting=False):
+def ising(N, NT, T, plotting=False, show=False):
 
     start_time = time()
 
@@ -35,7 +35,6 @@ def ising(N, NT, T, plotting=False):
         deltaE=J*2*test
         accepted = 0
         if(random.random() < np.exp(-beta*deltaE)):
-            # print("Flipped %d, %d" %(x,y))
             E += deltaE
             M -= 2*test
             spins[x,y] *= -1
@@ -43,7 +42,7 @@ def ising(N, NT, T, plotting=False):
         return E, M, accepted
     def ViewSystem(title):
         print(title)
-        print("Energy: %d\tMagnetization: %d\tN: %d\tT: %.1f" %(E,M,N,T))
+        print("Energy: %d\tMagnetization: %d\tN: %d\tT: %.2f" %(E,M,N,T))
         print(spins[1:-1])
 
     spins=np.ones([Noffset,Noffset], int)
@@ -68,20 +67,30 @@ def ising(N, NT, T, plotting=False):
     print("Runtime: %f" % (time()-start_time))
 
     def plot():
-        plt.plot(range(NT+1),energies, "b-", label="Energy")
-        plt.plot(range(NT+1),magnetization, "g-", label="Magnetization")
-        plt.plot(range(NT+1), np.ones(NT+1)*max_e, "b--", label="Max energy")
-        plt.plot(range(NT+1), -np.ones(NT+1)*max_e, "b--")
-        plt.plot(range(NT+1), np.ones(NT+1)*max_m, "g--", label="Max magnetization")
-        plt.plot(range(NT+1), -np.ones(NT+1)*max_m, "g--")
-        plt.title("Energy: %d Magnetization: %d N: %d T: %.1f" %(E,M,N,T))
-        plt.legend()
+        fig, (ax_energy, ax_magnet) = plt.subplots(2, sharex=True, sharey=False,figsize=(15,7) )
+
+        ax_energy.plot(range(NT+1),energies, "b-", label="Energy")
+        ax_energy.plot(range(NT+1), np.ones(NT+1)*max_e, "b--", label="Max energy")
+        ax_energy.plot(range(NT+1), -np.ones(NT+1)*max_e, "b--")
+        # ax_energy.legend()
+        ax_energy.set_ylabel("Energy")
+
+        ax_magnet.plot(range(NT+1),magnetization, "g-", label="Magnetization")
+        ax_magnet.plot(range(NT+1), np.ones(NT+1)*max_m, "g--", label="Max magnetization")
+        ax_magnet.plot(range(NT+1), -np.ones(NT+1)*max_m, "g--")
+        ax_magnet.set_ylabel("Magnetization")
+        # ax_magnet.legend()
+
+
+        plt.title("Energy: %d Magnetization: %d N: %d T: %.2f" %(E,M,N,T))
         plt.xlabel("Time")
-        title_string = "N%d_T%.1f.png"%(N,T)
+
+
+        title_string = "N%d_T%.2f.png"%(N,T)
         plt.savefig(title_string)
-        # plt.show()
-        plt.clf()
+        if(show):
+            plt.show()
+        else:
+            plt.clf()
     if(plotting):
         plot()
-for T in np.linspace(1,3,100):
-    ising(512, 2e6, T, plotting=True)
