@@ -116,11 +116,12 @@ def ising(N, NT, T, plotting=False, show=False, anim=False):
         title = plt.title("Iteration: %d"%0)
 
         def update_fig(i):
-            title = plt.title("Iteration: %d"%i)
+            title = plt.title("i: %d M: %d E: %d"%(i, magnetization[i], energies[i]))
             plot.set_array(snapshot_history[i//Nsnapshots])
             return plot, title
-        ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,NT,NT//Nsnapshots), interval=30, repeat=False)
+
+        ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,NT-1,NT//Nsnapshots), interval=30, repeat=True)
         plt.show()
     if(anim):
         animate()
-ising(16,2e6,1, anim=True)
+ising(512,5e6,0.1, anim=True)
