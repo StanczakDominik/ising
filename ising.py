@@ -1,11 +1,12 @@
 import numpy as np
 import numpy.random as random
 import matplotlib
+import matplotlib.animation
 import matplotlib.pyplot as plt
 from time import time
 
 # random.seed(1)
-def ising(N, NT, T, plotting=False, show=False):
+def ising(N, NT, T, plotting=False, show=False, anim=False):
 
     start_time = time()
 
@@ -18,6 +19,11 @@ def ising(N, NT, T, plotting=False, show=False):
     NT = int(NT)
     saved_parameters=3
     history = np.empty((NT+1,saved_parameters))
+    if anim:
+        Nsnapshots = int(np.sqrt(NT))
+        if Nsnapshots < 10:
+            Nsnapshots=NT
+        snapshot_history = np.empty((Nsnapshots, N,N), int)
 
     def Energy(spins):
         center = spins[1:-1, 1:-1]
@@ -45,11 +51,16 @@ def ising(N, NT, T, plotting=False, show=False):
         print("Energy: %d\tMagnetization: %d\tN: %d\tT: %.2f" %(E,M,N,T))
         print(spins[1:-1])
 
+    def ShowSpins(spins):
+        plot = plt.imshow(spins)
+        plot.set_cmap('Greys_r')
+        plt.colorbar()
+        plt.show()
+
     spins=np.ones([Noffset,Noffset], int)
     spins[:,0] = spins[:,-1] = spins[0,:] = spins[-1, :] = 0
     # spins[1:-1,1:-1:2,] = -1
     spins[1:-1, 1:-1] = random.randint(0,2, (N,N))*2-1
-
 
     E, M = Energy(spins), Mag(spins)
     parameters = E, M, -1
@@ -59,6 +70,8 @@ def ising(N, NT, T, plotting=False, show=False):
     for i in range(NT):
         parameters = E, M, Accepted = FlipSpin(spins,E,M)
         history[i+1]= parameters
+        if anim and i%(Nsnapshots)==0:
+            snapshot_history[int((i/NT)*Nsnapshots)]=spins[1:-1, 1:-1]
     ViewSystem("Finished")
     energies = history[:,0]
     magnetization = history[:,1]
@@ -94,3 +107,20 @@ def ising(N, NT, T, plotting=False, show=False):
             plt.clf()
     if(plotting):
         plot()
+
+    def animate():
+        fig = plt.figure(figsize=(15,7))
+        plot = plt.imshow(snapshot_history[0], interpolation="nearest")
+        plot.set_cmap('Greys_r')
+        plt.colorbar()
+        title = plt.title("Iteration: %d"%0)
+
+        def update_fig(i):
+            title = plt.title("Iteration: %d"%i)
+            plot.set_array(snapshot_history[i//Nsnapshots])
+            return plot, title
+        ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,NT,NT//Nsnapshots), interval=30, repeat=False)
+        plt.show()
+    if(anim):
+        animate()
+ising(16,2e6,1, anim=True)
