@@ -4,17 +4,16 @@ import matplotlib
 import matplotlib.animation
 import matplotlib.pyplot as plt
 from time import time
+k=1
+J=1
+Theory_TC = J/k*2/np.log(1+np.sqrt(2))
 
 def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True, continue_run=False):
 
     start_time = time()
 
-    Noffset=N+2
-    k=1
-    J=1
+
     beta=1/k/T
-    max_e = J*N**2
-    max_m = N**2
     NT = int(NT)
     saved_parameters=3
     Nsnapshots = int(NT**(1/3))
@@ -22,57 +21,41 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True, contin
     if anim:
         snapshot_history = np.empty((Nsnapshots, N,N), int)
 
+    Theory_M = N**2*(1-np.sinh(2*beta*J)**(-4))**(1/8)
     def Energy(spins):
-        center = spins[1:-1, 1:-1]
-        sides = spins[:-2, 1:-1] + spins[2:, 1:-1] +\
-            spins[1:-1, 2:] + spins[1:-1, :-2]
-        return -J*np.sum(center*sides)
+        center = spins
+        sides = np.roll(spins, 1, 0) + np.roll(spins, 1, 1) + np.roll(spins, -1, 0) + np.roll(spins, -1, 1)
+        return -J*np.sum(center*sides)/2
 
     def Mag(spins):
-        return np.sum(spins[1:-1,1:-1])
+        return np.sum(spins)
 
     def FlipSpin(spins, E, M):
-        # print("\n\n\nFLIPPING SPIN")
-        # print(spins[1:-1, 1:-1])
-        x, y = random.randint(1,N+1, 2)
-        # print("x: %d y: %d"%(x,y))
+        x, y = random.randint(0,N,2)
         test = spins[x,y]
-        neighbor_spins = spins[x+1,y] + spins[x-1,y] + spins[x,y-1] + spins[x,y+1]
+        neighbor_spins = spins[(x+1)%N,(y)%N] + spins[(x-1)%N,y%N] + spins[x%N,(y-1)%N] + spins[x%N,(y+1)%N]
         deltaE=J*2*test*neighbor_spins
-        # print("spins[%d,%d] = %d    nbSpins: %d    deltaE: %d"%(x,y,test,neighbor_spins,deltaE))
         accepted = 0
         uniform_random = random.random()
         probability_cutoff = np.exp(-beta*deltaE)
-        # print("Uniform random: %f Boltzmann cutoff: %f"%(uniform_random,probability_cutoff))
         if(uniform_random < probability_cutoff):
-            # print("\tRandom number was smaller than cutoff")
             E += deltaE
             M -= 2*test
             accepted = 1
             spins[x,y] *= -1
-        # print("FLIPPING DONE\n\n")
         return E, M, accepted
     def ViewSystem(title):
         print(title)
         print("Energy: %d\tMagnetization: %d\tN: %d\tT: %.2f" %(E,M,N,T))
         print(spins[1:-1,1:-1])
 
-    def ShowSpins(spins):
-        plot = plt.imshow(spins)
-        plot.set_cmap('Greys_r')
-        plt.colorbar()
-        plt.show()
-
-    spins=np.ones([Noffset,Noffset], int)
-    spins[:,0] = spins[:,-1] = spins[0,:] = spins[-1, :] = 0
-
     if restart:
-        spins[1:-1, 1:-1] = random.randint(0,2, (N,N))*2-1
-        np.save("data/N%d_T%.2f_start"%(N,T), spins)
+        spins = random.randint(0,2, (N,N))*2-1
+        np.save("pbcdata/N%d_T%.2f_start"%(N,T), spins)
     elif continue_run:
-        spins=np.load("data/N%d_T%.2f_finish.npy"%(N,T))
+        spins=np.load("pbcdata/N%d_T%.2f_finish.npy"%(N,T))
     else:
-        spins=np.load("data/N%d_T%.2f_start.npy"%(N,T))
+        spins=np.load("pbcdata/N%d_T%.2f_start.npy"%(N,T))
 
     E, M = Energy(spins), Mag(spins)
     parameters = E, M, -1
@@ -80,12 +63,13 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True, contin
     ViewSystem("Starting")
 
     for i in range(NT):
-        parameters = E, M, Accepted = FlipSpin(spins,E,M)
+        E, M, Accepted = FlipSpin(spins,E,M)
         if anim and i%(Nsnapshots)==0:
+            parameters = E, M, Accepted
             history[int((i/NT)*Nsnapshots)]= parameters
-            snapshot_history[int((i/NT)*Nsnapshots)]=spins[1:-1, 1:-1]
+            snapshot_history[int((i/NT)*Nsnapshots)]=spins
 
-    np.save("data/N%d_T%.2f_finish"%(N,T), spins)
+    np.save("pbcdata/N%d_T%.2f_finish"%(N,T), spins)
     ViewSystem("Finished")
     energies = history[:,0]
     magnetization = history[:,1]
@@ -99,20 +83,22 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True, contin
 
         times = np.linspace(0,NT,Nsnapshots)
         ax_energy.plot(times,energies, "b-", label="Energy")
-        ax_energy.plot(times, np.ones(Nsnapshots)*max_e, "b--", label="Max energy")
-        ax_energy.plot(times, -np.ones(Nsnapshots)*max_e, "b--")
-        # ax_energy.legend()
+        # ax_energy.plot(times, np.ones(Nsnapshots)*max_e, "b--", label="Max energy")
+        # ax_energy.plot(times, -np.ones(Nsnapshots)*max_e, "b--")
+        ax_energy.legend()
+        ax_magnet.grid()
         ax_energy.set_ylabel("Energy")
 
         ax_magnet.plot(times,magnetization, "g-", label="Magnetization")
-        ax_magnet.plot(times, np.ones(Nsnapshots)*max_m, "g--", label="Max magnetization")
-        ax_magnet.plot(times, -np.ones(Nsnapshots)*max_m, "g--")
+        ax_magnet.plot(times, np.ones(Nsnapshots)*Theory_M, "g--", label="Theoretical spontaneous")
+        ax_magnet.plot(times, -np.ones(Nsnapshots)*Theory_M, "g--")
         ax_magnet.set_ylabel("Magnetization")
-
+        ax_magnet.legend()
+        ax_magnet.grid()
         plt.xlabel("Time")
 
 
-        title_string = "plots/N%d_T%.2f.png"%(N,T)
+        title_string = "pbcplots/N%d_T%.2f.png"%(N,T)
         plt.savefig(title_string)
         if(show):
             plt.show()
@@ -136,12 +122,11 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True, contin
         ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,Nsnapshots), interval=30, blit=False, repeat=True)
         Writer = matplotlib.animation.writers['ffmpeg']
         writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-        ani.save('plots/cabbage.mp4', writer='ffmpeg', fps=30)
+        ani.save('pbcplots/cabbage.mp4', writer='ffmpeg', fps=30)
         if(show):
             plt.show()
         else:
             plt.clf()
     if(anim):
         animate()
-for j in range(50):
-    ising(256,2e7,0.1, plotting=True, show=False, anim=True, restart=False, continue_run=True)
+ising(256,1e6,0.1, plotting=True, show=True, anim=True, restart=False, continue_run=True)
