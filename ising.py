@@ -5,8 +5,7 @@ import matplotlib.animation
 import matplotlib.pyplot as plt
 from time import time
 
-# random.seed(1)
-def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True):
+def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True, continue_run=False):
 
     start_time = time()
 
@@ -18,31 +17,40 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True):
     max_m = N**2
     NT = int(NT)
     saved_parameters=3
-    history = np.empty((NT+1,saved_parameters))
+    Nsnapshots = int(NT**(1/3))
+    history = np.empty((Nsnapshots,saved_parameters))
     if anim:
-        Nsnapshots = int(np.sqrt(NT))
         snapshot_history = np.empty((Nsnapshots, N,N), int)
 
     def Energy(spins):
         center = spins[1:-1, 1:-1]
         sides = spins[:-2, 1:-1] + spins[2:, 1:-1] +\
             spins[1:-1, 2:] + spins[1:-1, :-2]
-
         return -J*np.sum(center*sides)
 
     def Mag(spins):
         return np.sum(spins[1:-1,1:-1])
 
     def FlipSpin(spins, E, M):
-        x, y = random.randint(1,N+2, 2)
+        # print("\n\n\nFLIPPING SPIN")
+        # print(spins[1:-1, 1:-1])
+        x, y = random.randint(1,N+1, 2)
+        # print("x: %d y: %d"%(x,y))
         test = spins[x,y]
-        deltaE=-J*2*test
+        neighbor_spins = spins[x+1,y] + spins[x-1,y] + spins[x,y-1] + spins[x,y+1]
+        deltaE=J*2*test*neighbor_spins
+        # print("spins[%d,%d] = %d    nbSpins: %d    deltaE: %d"%(x,y,test,neighbor_spins,deltaE))
         accepted = 0
-        if(random.random() < np.exp(-beta*deltaE)):
+        uniform_random = random.random()
+        probability_cutoff = np.exp(-beta*deltaE)
+        # print("Uniform random: %f Boltzmann cutoff: %f"%(uniform_random,probability_cutoff))
+        if(uniform_random < probability_cutoff):
+            # print("\tRandom number was smaller than cutoff")
             E += deltaE
             M -= 2*test
-            accepted = test
+            accepted = 1
             spins[x,y] *= -1
+        # print("FLIPPING DONE\n\n")
         return E, M, accepted
     def ViewSystem(title):
         print(title)
@@ -57,12 +65,15 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True):
 
     spins=np.ones([Noffset,Noffset], int)
     spins[:,0] = spins[:,-1] = spins[0,:] = spins[-1, :] = 0
-    # spins[1:-1,1:-1:2,] = -1
+
     if restart:
         spins[1:-1, 1:-1] = random.randint(0,2, (N,N))*2-1
         np.save("data/N%d_T%.2f_start"%(N,T), spins)
+    elif continue_run:
+        spins=np.load("data/N%d_T%.2f_finish.npy"%(N,T))
     else:
-        spins=np.load("N%d_T%.2f_start.npy"%(N,T))
+        spins=np.load("data/N%d_T%.2f_start.npy"%(N,T))
+
     E, M = Energy(spins), Mag(spins)
     parameters = E, M, -1
     history[0] = parameters
@@ -70,8 +81,8 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True):
 
     for i in range(NT):
         parameters = E, M, Accepted = FlipSpin(spins,E,M)
-        history[i+1]= parameters
         if anim and i%(Nsnapshots)==0:
+            history[int((i/NT)*Nsnapshots)]= parameters
             snapshot_history[int((i/NT)*Nsnapshots)]=spins[1:-1, 1:-1]
 
     np.save("data/N%d_T%.2f_finish"%(N,T), spins)
@@ -79,28 +90,24 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True):
     energies = history[:,0]
     magnetization = history[:,1]
     acceptance = history[:,2]
-    print("Average spin from which transition was accepted: %f" %np.mean(acceptance))
+    print("Acceptance ratio: %f" %np.mean(acceptance))
     print("Runtime: %f" % (time()-start_time))
 
     def plot():
-        fig, (ax_energy, ax_magnet, ax_acceptance) = plt.subplots(3, sharex=True, sharey=False,figsize=(15,12) )
+        fig, (ax_energy, ax_magnet) = plt.subplots(2, sharex=True, sharey=False,figsize=(15,7) )
         plt.title("Energy: %d Magnetization: %d N: %d T: %.2f" %(E,M,N,T))
 
-        ax_energy.plot(range(NT+1),energies, "b-", label="Energy")
-        ax_energy.plot(range(NT+1), np.ones(NT+1)*max_e, "b--", label="Max energy")
-        ax_energy.plot(range(NT+1), -np.ones(NT+1)*max_e, "b--")
+        times = np.linspace(0,NT,Nsnapshots)
+        ax_energy.plot(times,energies, "b-", label="Energy")
+        ax_energy.plot(times, np.ones(Nsnapshots)*max_e, "b--", label="Max energy")
+        ax_energy.plot(times, -np.ones(Nsnapshots)*max_e, "b--")
         # ax_energy.legend()
         ax_energy.set_ylabel("Energy")
 
-        ax_magnet.plot(range(NT+1),magnetization, "g-", label="Magnetization")
-        ax_magnet.plot(range(NT+1), np.ones(NT+1)*max_m, "g--", label="Max magnetization")
-        ax_magnet.plot(range(NT+1), -np.ones(NT+1)*max_m, "g--")
+        ax_magnet.plot(times,magnetization, "g-", label="Magnetization")
+        ax_magnet.plot(times, np.ones(Nsnapshots)*max_m, "g--", label="Max magnetization")
+        ax_magnet.plot(times, -np.ones(Nsnapshots)*max_m, "g--")
         ax_magnet.set_ylabel("Magnetization")
-
-        ax_acceptance.plot(range(NT+1),acceptance, "g-", label="Magnetization")
-        ax_acceptance.set_ylabel("Accepted change from spin:")
-        # ax_magnet.legend()
-
 
         plt.xlabel("Time")
 
@@ -122,13 +129,19 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, restart=True):
         title = plt.title("Iteration: %d"%0)
 
         def update_fig(i):
-            title = plt.title("i: %d M: %d E: %d"%(i, magnetization[i], energies[i]))
-            plot.set_array(snapshot_history[i//Nsnapshots])
+            title = plt.title("i: %d M: %d E: %d"%(i*NT/Nsnapshots, magnetization[i], energies[i]))
+            plot.set_array(snapshot_history[i])
             return plot, title
 
-        ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,NT-1,NT//Nsnapshots), interval=30, blit=False, repeat=True)
-        ani.save('plots/cabbage.mp4', writer='mencoder', fps=30)
-        plt.show()
+        ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,Nsnapshots), interval=30, blit=False, repeat=True)
+        Writer = matplotlib.animation.writers['ffmpeg']
+        writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+        ani.save('plots/cabbage.mp4', writer='ffmpeg', fps=30)
+        if(show):
+            plt.show()
+        else:
+            plt.clf()
     if(anim):
         animate()
-ising(2,5,2, plotting=True)#, show=True, anim=True)
+for j in range(50):
+    ising(256,2e7,0.1, plotting=True, show=False, anim=True, restart=False, continue_run=True)
