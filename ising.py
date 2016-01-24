@@ -134,7 +134,6 @@ def ising(N, NT, T, plotting=False, show=False, anim=False, continue_run=True):
             return plot, title
 
         ani = matplotlib.animation.FuncAnimation(fig, update_fig, np.arange(0,Nsnapshots), interval=30, blit=False, repeat=True)
-        ani.save(parameter_string+'vid.mp4', writer='ffmpeg', fps=30)
         if(show):
             plt.show()
         else:
