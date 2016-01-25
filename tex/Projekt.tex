@@ -103,19 +103,113 @@ ferromagnetyka.
 \section{Symulacja komputerowa}
 Ze względu na prostotę swoich podstawowych reguł dwuwymiarowy model Isinga znakomicie
 nadaje się do symulacji komputerowej. Siatka spinów może być w bardzo łatwy i logiczny sposób
-modelowana jako dwuwymiarowa tablica liczb całkowitych
-\section{Metropolis-Hastings}
+modelowana jako dwuwymiarowa tablica liczb całkowitych o rozmiarze $NxN$. Spiny są wtedy jednoznacznie określone
+przez indeksy $i, j$ z zakresu $(0,N)$ na siatce. Jako początkowy stan układu przyjmujemy losową tablicę
+liczb całkowitych $S_i = \pm 1$.
 
+Sąsiedzi danego spinu są łatwi do znalezienia jako spiny o indeksach
+\[(i+1, j), (i-1,j), (i,j+1), (i,j-1)\]
+
+W celu uwzględnienia okresowych warunków brzegowych obliczamy indeksy modulo N, na przykład
+dla spinu w prawym dolnym rogu symulacji o indeksie $(N,N)$ indeksy sąsiadów to:
+\[(0,N), (N-1,N), (N,0),(N,N-1)\]
+
+\section{Dynamika układu. Algorytm Metropolis-Hastings}
+Pozostaje kwestia najważniejsza - implementacja dynamiki układu. Algorytm stosowany
+w tym celu jest nieskomplikowany:
+\begin{enumerate}
+  \item Wybieramy losowy spin jako parę indeksów $(i,j)$.
+  \item Obliczamy jego energię interakcji tego spinu w przypadku, gdybyśmy zdecydowali się go przerzucić, z jego czterema sąsiadami, potencjalnie
+  uwzględniając okresowe warunki brzegowe, jako sumę $E=-J S_{ij}\sum_{\text{sasiedzi}}{S_{\text{sasiad}}}$. Należy zwrócić uwagę, że różnica
+  energii między tymi dwoma stanami wynosi $\Delta E = -2 E$.
+  \item Na podstawie zmiany energii interakcji danego spinu decydujemy, czy należy go przerzucić.
+  \item Opcjonalnie, jeśli nastąpiło przerzucenie, aktualizujemy energię oraz magnetyzację układu.
+\end{enumerate}
+Oczywiście niewyjaśnioną pozostaje kwestia decyzji, czy należy przerzucić spin. Istnieje jednak proste rozwiązanie
+tego problemu: algorytm Metropolis-Hastings. Według tego algorytmu na podstawie reguły ``równowagi szczególnej''\footnote{Tłumaczenie własne,
+nie znam bowiem polskiej literatury na ten temat.} można stwierdzić, że prawdopodobieństwo akceptacji przejścia ze stanu A (na przykład spin up)
+do stanu B (spin down) powinno być proporcjonalne do $\frac{P(B)}{P(A)} = \frac{Z}{Z} e^{-\beta(E(B)-E(A))}=e^{-\beta \Delta E}$. Należy zwrócić uwagę,
+że algorytm ten nie wymaga obliczania sumy statystycznej układu $Z$ - skraca się ona w trakcie dzielenia.
+
+W praktyce wystarczy więc dla proponowanego przerzucenia spinu obliczyć czynnik boltzmannowski $P=e^{-\beta \Delta E}$, zawierający się dla dodatnich
+temperatur w przedziale $(0,1)$. Następnie należy wylosować liczbę rzeczywistą z tego przedziału i porównać ją z $P$. Jeżeli wylosowana liczba jest
+mniejsza od P, należy zaakceptować przejście (przerzucenie spinu). Warto zauważyć, iż dla $\Delta E < 0$ każde przejście zostaje zaakceptowane:
+algorytm odwzorowuje przejście do minimum energetycznego jako stanu równowagi.
 \section{Kod symulacji w Pythonie}
+Program napisany jest w Pythonie 3.5 (dystrybucja Anaconda). Kod dostępny jest również
+w repozytorium\footnote{\url{https://github.com/StanczakDominik/ising}}.
+
 \lstinputlisting[language=Python]{../ising.py}
 
 \section{Wyniki}
 
+Wykonałem trzy oddzielne symulacje dla układu $256^2=65 536$ cząstek w temperaturach
+\[0.5, T_C = \frac{2}{\ln{(1+\sqrt{2})}}, 3.5 \]
+w układzie jednostek znormalizowanym do stałej Boltzmanna $k_B = 1$.
+Jako przykładową demonstrację warunków początkowych, wygenerowany początkowo losowy stan:
+(dla $T=1$, lecz de facto niezależnie od temperatury):
+
+\largepng{../data/N256_T1.0/initial.png}
+
+\subsection{$T=0.5$}
+
+\largepng{../data/N256_T0.5/plot.png}
+
+Dla temperatury poniżej $T_C$ następuje bardzo szybka zbieżność energii do wartości bliskiej przewidywanej teoretycznie.
+Magnetyzacja również zbiega do wartości przewidywanej teoretycznie, lecz tym razem dużo, dużo wolniej. Ma to swoje uzasadnienie:
+układ przez długi czas składa się nie z jednego układu o wszystkich spinach wskazujących w tę samą stronę, lecz z dyskretnych
+domen magnetycznych. Te zaś są stabilne na długich skalach czasowych. Jest to zachowanie jako żywo przypominające znane z rzeczywistych magnesów.
+Obrazuje to poniższe zdjęcie z animacji oraz sama animacja, pokazująca pierwsze 100 miliardów iteracji.
+znadująca się pod linkiem: \url{https://youtu.be/KWMnoyFeenU}
+
+\largepng{../data/N256_T0.5/final.png}
+
+Czuję się również w obowiązku zademonstrować jedno z końcowych zdjęć w symulacji, demonstrujące końcowy stan równowagi:
+
+\largepng{../data/N256_T0.5/stabilny.png}
+
+\subsection{$T=T_C$}
+\largepng{../data/N256_T2.3/plot.png}
+
+Dla temperatury równej $T_C$, choć energia szybko zdaje się osiągać minimum,
+jest to jednak minimum lokalne (na poziomie $-90k$ zamiast $-120k$, jak dla przypadku $T=0.5$). Zachodzą intensywne
+oscylacje tak energii jak i magnetyzacji. Magnetyzacja zdaje się oscylować, osiągając co najwyżej połowę wartości
+maksymalnej dla przypadku ferromagnetycznego.
+
+Należy zwrócić uwagę, że algorytm Metropolis-Hastings jest znany ze
+spowalniania blisko przejścia fazowego, ponieważ duża część przerzuceń spinów zostaje odrzucona. Symulacja tym
+naiwnym algorytmem w tym reżimie jest więc utrudniona.
+
+Chciałbym też zauważyć, że teoretyczna energia przewidywana równaniami Onsagera wynosi $+\infty$ i, o ile mogę to stwierzdić,
+nie ma sensownego fizycznego znaczenia poza sygnalizowaniem przejścia fazowego - coś w układzie idzie ``nie tak''.
+
+W animacji układ wygląda jak superpozycja uporzadkowanej sytuacji w magnetyku - występują w nim wyraźne domeny ferromagnetyczne - oraz
+silnych szumów w paramagnetyku. Animacja pierwszych stu miliardów iteracji znajduje się pod tym linkiem: \url{https://www.youtube.com/watch?v=kHgOxCc_jPI}
+
+\largepng{../data/N256_T2.3/final.png}
+
+\subsection{$T=3.5$}
+
+\largepng{../data/N256_T3.5/plot.png}
+
+Dla temperatury powyżej temperatury krytycznej układ bardzo szybko (praktycznie natychmiastowo) zbiega do stabilnego minimum
+swojej energii, przewidywanej zresztą równaniami Onsagera. Występują jednak silne oscylacje wokół tego minimum, zaś samo minimum
+jest względnie wysokoenergetyczne ($-45k$ wobec $-120k$ dla przypadku ferromagnetycznego). Jedyna magnetyzacja jaka występuje w
+układzie to intensywna, choć o rząd wielkości mniejsza niż w poprzednich przypadkach, oscylacja wokół zera. Układ w tej temperaturze jest
+paramagnetykiem. Model Isinga działa!
+
+Animacja wyniku tej symulacji znajduje się pod następującym linkiem: \url{https://www.youtube.com/watch?v=rCm1EI82TXk}. Wyraźnie widać, że układ zaczynający
+z losowego ustawienia pozostaje losowy - oddziaływanie między spinami nie jest na tyle silne, aby utrzymać jakikolwiek porządek w układzie.
+
+\largepng{../data/N256_T3.5/final.png}
+
+
 \section{Bibliografia}
   \begin{itemize}
-      \item \url{https://www.coursera.org/course/smac} - MOOC ``Statistical Mechanics -
-      Algorithms and Computations''
-      \item \url{https://en.wikipedia.org/wiki/Square-lattice_Ising_model}
-      \item \url{https://github.com/StanczakDominik/ising}
+      \item \url{https://www.coursera.org/course/smac} - ``Statistical Mechanics -
+      Algorithms and Computations'', wyśmienity internetowy kurs wprowadzający w tajniki symulacji układów statystycznych, w tym modelu Isinga.
+      \item \url{https://en.wikipedia.org/wiki/Square-lattice_Ising_model} - szybki podgląd wzorów analitycznych dla modelu Isinga 2D
+      \item \url{https://en.wikipedia.org/wiki/Ising_model#The_Metropolis_algorithm} - przypomnienie formalnej wersji algorytmu Metropolis-Hastings
+      \item \url{https://github.com/StanczakDominik/ising} - repozytorium programu
   \end{itemize}
 \end{document}
