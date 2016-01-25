@@ -1,12 +1,7 @@
-*.png
 *.pdf
 *.aux
 *.fdb_latexmk
 *.fls
 *.log
 *.synctex.gz
-*.npy
-data*
-plots*
-pbcdata
-pbcplots
+*.out

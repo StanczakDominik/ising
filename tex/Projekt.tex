@@ -2,23 +2,120 @@
 \usepackage{amsmath} % AMS Math Package
 \usepackage{polski}
 \usepackage[utf8]{inputenc}
-\usepackage{listings}
+\usepackage[procnames]{listings}
 \usepackage{graphicx} % Allows for eps images
+\usepackage{hyperref}
 \newcommand{\png}[1]{\begin{center}\includegraphics{#1}\end{center}}
 \newcommand{\largepng}[1]{\begin{center}\includegraphics[width=\linewidth]{#1}\end{center}}
 
+\usepackage{color}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
 \title{Dwuwymiarowy model Isinga - symulacja komputerowa}
 \author{Dominik Stańczak}
 
 \begin{document}
 \maketitle
 
+\section{Model Isinga}
+
+W roku 1924 niemiecki fizyk Ernst Ising zaproponował model, nazwany później od jego
+nazwiska, mający na celu wytłumaczyć zjawiska zachodzące w ferromagnetykach, a zwłaszcza
+przejście fazowe w temperaturze Curie. Model Isinga, jak powszechnie wiadomo,
+opiera się na przedstawieniu spinów\footnote{Oczywiście można wykorzystać model
+Isinga do modelowania innych zjawisk, lecz dla skupienia uwagi ograniczmy się
+do modelowania materiałów magnetycznych.} w materiale jako dyskretnych cząstek
+na siatce, obdarzonych spinem mogącym przyjmować wartości $S_i = \pm 1$.
+Hamiltonian takiego układu w przypadku nieuwzględniającym zewnętrznego pola
+magnetycznego przedstawia się jako
+
+\[ H = -\sum_{i, j\neq j}{J_{ij} S_i S_j}\]
+
+gdzie $J_{ij}$ jest tak zwaną całką wymiany, wielkością określającą siłę
+wzajemnego oddziaływania między dowolnymi dwiema cząstkami, zaś sumowanie odbywa
+się po wszystkich parach cząstek w układzie. Często przyjmuje się, że $J_{ij}$ ma
+niezerową wartość (często $1$) wyłącznie dla najbliższych sąsiadów danej cząstki.
+
+Należy zwrócić uwagę, że dla $J>0$ korzystna energetycznie jest sytuacja, gdy
+wszystkie spiny mają identyczny kierunek - materiał jest wtedy ferromagnetyczny.
+Dla $J<0$ korzystna energetycznie jest sytuacja, w której wszystkie spiny mają kierunek
+przeciwny do swoich sąsiadów.
+
+Magnetyzację układu definiuje się w prosty sposób jako sumę orientacji wszystkich
+spinów w układzie:
+
+\[M = \sum_i{S_i}\]
+
+Ising znalazł w swojej pracy doktorskiej rozwiązanie układu w jednym wymiarze,
+w którym mowa o tzw. łańcuchu Isinga. Niestety, w jednym wymiarze łańcuch Isinga
+nie przejawia przejścia fazowego, zaś uporządkowanie układu, którego spodziewamy
+się w systuacji ferromagnetycznej, maleje wykładniczo w czasie. Spiny są więc
+zorientowane losowo, a magnetyzacja krąży wokół zera - nie jest to więc dobry model
+magnesu. Ising błędnie wywnioskował, że jego model będzie się zachowywał podobnie w dowolnej liczbie wymiarów.
+
+\section{Dwuwymiarowy model Isinga}
+W roku 1944 Lars Onsager w swojej własnej pracy doktorskiej rozwiązał analitycznie
+model Isinga dla dwóch wymiarów, z okresowymi warunkami brzegowymi. Jest to jednoznaczne z założeniem,
+że materiał ma całkowitą symetrię translacyjną. Jak się okazało, w dwóch wymiarach model faktycznie
+wykazuje przejście fazowe w temperaturze krytycznej, zakładając izotropię
+(niezależność całki wymiany od kierunku oddziaływania):
+\[ T_C = \frac{2}{\ln{(1+\sqrt{2})}} \]
+Poniżej temperatury krytycznej układ ma stabilne minima energetyczne (stany równowagi) dla średniej
+energii na cząstkę\footnote{\url{https://en.wikipedia.org/wiki/Square-lattice_Ising_model#Exact_solution}}
+
+\[ u = <U> = -J \coth{(2\beta J)} \Big(1+\frac{2}{\pi}(2\tanh^2{(2\beta J)} -1) K(x) \Big) \]
+
+gdzie $\beta=(k_B T)^{-1}$, $x=\sinh^2{2 \beta J}$, zaś $K(x)$ jest całką eliptyczną zupełną pierwszego rodzaju:
+
+\[ K(x) = \int_0^{\pi/2} (1-x \sin^2(t))^{-1/2} dt\]
+
+Należy zwrócić uwagę, że dla $T=T_C$, $K(x)=\infty$.
+
+W stanie równowagi teoretyczna magnetyzacja na cząstkę:
+
+\[m = <M> = [1-\sinh^{-4}{(2\beta J)}]^{1/8} \]
+
+Układ wykazuje więc spontaniczną magnetyzację - tak, jak spodziewamy się dla
+ferromagnetyka.
+
+\section{Symulacja komputerowa}
+Ze względu na prostotę swoich podstawowych reguł dwuwymiarowy model Isinga znakomicie
+nadaje się do symulacji komputerowej. Siatka spinów może być w bardzo łatwy i logiczny sposób
+modelowana jako dwuwymiarowa tablica liczb całkowitych
+\section{Metropolis-Hastings}
+
 \section{Kod symulacji w Pythonie}
-\lstinputlisting[Language=Python]{ising.py}
+\lstinputlisting[language=Python]{../ising.py}
+
+\section{Wyniki}
 
 \section{Bibliografia}
   \begin{itemize}
-      \item SMAC https://www.coursera.org/course/smac
-      \item github.com/stanczakdominik/ising
+      \item \url{https://www.coursera.org/course/smac} - MOOC ``Statistical Mechanics -
+      Algorithms and Computations''
+      \item \url{https://en.wikipedia.org/wiki/Square-lattice_Ising_model}
+      \item \url{https://github.com/StanczakDominik/ising}
   \end{itemize}
 \end{document}
